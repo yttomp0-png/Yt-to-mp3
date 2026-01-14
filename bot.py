@@ -5,7 +5,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Render-ന് വേണ്ടി ഒരു ലളിതമായ വെബ് സെർവർ
+# Health Check Server for Render to prevent sleeping
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -17,11 +17,13 @@ def run_health_check():
     server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
     server.serve_forever()
 
-TOKEN = os.getenv('BOT_TOKEN')
+# Your Bot Token
+TOKEN = '8455878492:AAHZvk6fOjuHihfaJXpBZm7i4okSWy63BbU'
 
 def download_audio(url):
     if not os.path.exists('downloads'):
         os.makedirs('downloads')
+    
     ydl_opts = {
         'format': 'bestaudio/best',
         'postprocessors': [{
@@ -30,34 +32,42 @@ def download_audio(url):
             'preferredquality': '192',
         }],
         'outtmpl': 'downloads/%(title)s.%(ext)s',
-        'ffmpeg_location': '/usr/bin/ffmpeg',
+        'ffmpeg_location': '/usr/bin/ffmpeg', # Path for Docker
     }
+    
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         return ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 സ്വാഗതം! YouTube ലിങ്ക് അയക്കൂ, ഞാൻ അത് MP3 ആക്കി തരാം.")
+    await update.message.reply_text("👋 Hello! Send me a YouTube link, and I will convert it to MP3 for you.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
     if "youtube.com" in url or "youtu.be" in url:
-        status_msg = await update.message.reply_text("പ്രോസസ്സ് ചെയ്യുന്നു... ⏳")
+        status_msg = await update.message.reply_text("Processing your request... Please wait ⏳")
         try:
             file_path = download_audio(url)
-            await update.message.reply_audio(audio=open(file_path, 'rb'))
-            os.remove(file_path)
+            await update.message.reply_audio(audio=open(file_path, 'rb'), caption="Downloaded by your bot")
+            os.remove(file_path) # Delete file after sending
             await status_msg.delete()
         except Exception as e:
-            await update.message.reply_text(f"Error: {e}")
+            await update.message.reply_text(f"Sorry, an error occurred: {e}")
+    else:
+        await update.message.reply_text("Please send a valid YouTube link.")
 
 def main():
-    # വെബ് സെർവർ സ്റ്റാർട്ട് ചെയ്യുന്നു
+    # Start Health Check Server
     threading.Thread(target=run_health_check, daemon=True).start()
     
+    # Initialize Application
     app = Application.builder().token(TOKEN).build()
+    
+    # Handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    print("Bot is running...")
     app.run_polling()
 
 if __name__ == '__main__':
