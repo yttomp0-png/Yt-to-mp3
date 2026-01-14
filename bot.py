@@ -18,7 +18,7 @@ def run_health_check():
     server.serve_forever()
 
 # Your Bot Token
-TOKEN = '8455878492:AAHZvk6fOjuHihfaJXpBZm7i4okSWy63BbU'
+TOKEN = '7926824723:AAFdheLPubMGtphzBV7yJRWYR0Qb_Z9rRNw'
 
 def download_audio(url):
     if not os.path.exists('downloads'):
